@@ -14,5 +14,5 @@ Cargo.lock
 #----------- GENERATED FILES ----------#
 
 ## Disk images ##
-*.img
+*.disk
 /dist
