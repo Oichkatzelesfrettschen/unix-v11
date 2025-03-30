@@ -8,16 +8,27 @@
 #![no_main]
 extern crate alloc;
 
-mod archs; mod ram;
+mod ram;
 
 use core::panic::PanicInfo;
 use uefi::{entry, println, Status};
-#[cfg(target_arch = "aarch64")]
-use archs::aarch64 as arch;
-#[cfg(target_arch = "x86_64")]
-use archs::amd64 as arch;
+macro_rules! arch {
+    ($arch:literal, $modname:ident) => {
+        #[cfg(target_arch = $arch)]
+        mod $modname;
+        #[cfg(target_arch = $arch)]
+        use $modname as arch;
+    };
+}
 
-fn init_storage() {}
+arch!("aarch64", aarch64);
+arch!("x86_64", amd64);
+
+
+fn init_storage() {
+    // init_devices();
+    // init_filesys();
+}
 
 fn init_metal() {
     ram::init_ram();
@@ -29,6 +40,11 @@ fn schedule() -> ! { loop { arch::halt(); } }
 #[entry]
 fn ignite() -> Status {
     init_metal();
+    // load_kernel_image();
+    // exit_boot_services();
+    // jump_to_kernel();
+
+    // init_metal();
     exec_aleph();
     schedule();
 }
