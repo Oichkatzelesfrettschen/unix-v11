@@ -1,7 +1,4 @@
-use uefi::{
-    boot::{memory_map, MemoryType},
-    mem::memory_map::MemoryMap
-};
+use uefi::boot::{MemoryDescriptor, MemoryType};
 use linked_list_allocator::LockedHeap;
 
 pub const HEAP_SIZE: usize = 0x10_0000;
@@ -10,12 +7,11 @@ const PAGE_SIZE: usize = 0x1000;
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub fn init_ram() {
-    let ram_map = memory_map(MemoryType::LOADER_DATA).unwrap();
+pub fn init_ram(efi_ram_layout: &[MemoryDescriptor]) {
     let heap_pages = HEAP_SIZE / PAGE_SIZE;
     let mut heap_start: Option<usize> = None;
 
-    for entry in ram_map.entries() {
+    for entry in efi_ram_layout.iter() {
         if entry.ty != MemoryType::CONVENTIONAL { continue; }
 
         if entry.page_count as usize >= heap_pages {

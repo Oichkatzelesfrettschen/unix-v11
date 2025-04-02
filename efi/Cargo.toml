@@ -1,0 +1,22 @@
+[package]
+name = "unix-v11-efi"
+version = "0.0.1"
+edition = "2021"
+
+[[bin]]
+name = "unix-v11-efi"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+aarch64 = "0.0.13"
+linked_list_allocator = "0.10.5"
+uefi = { version = "0.34.1", features = ["alloc"] }
+x86_64 = "0.15.2"
+xmas-elf = "0.10.0"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
