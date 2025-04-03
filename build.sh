@@ -16,4 +16,4 @@ diskutil eraseDisk FAT32 UNIXV11 GPTFormat $diskno
 cp -R dist/* /Volumes/UNIXV11/
 hdiutil detach $diskno
 
-qemu-system-x86_64 -cpu qemu64 -bios ovmf_amd64.fd -drive file=unixv11.disk,if=ide -m 512M
+qemu-system-x86_64 -cpu qemu64 -bios ovmf_amd64.fd -drive file=unixv11.disk,if=ide -m 512M -serial stdio
