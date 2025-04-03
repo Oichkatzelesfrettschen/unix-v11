@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use uefi::{boot, cstr16, println, proto::media::file::{File, FileAttribute, FileInfo, FileMode}};
+use uefi::{boot, cstr16, proto::media::file::{File, FileAttribute, FileInfo, FileMode}};
 use xmas_elf::program::Type;
 
 pub fn load_kernel_image() -> usize {
@@ -18,8 +18,7 @@ pub fn load_kernel_image() -> usize {
     let mut buf = Vec::with_capacity(size);
     unsafe { buf.set_len(size); }
 
-    let read_size = file.read(&mut buf).unwrap();
-    println!("Read {} bytes from file", read_size);
+    let _ = file.read(&mut buf).unwrap();
 
     let elf = xmas_elf::ElfFile::new(&buf).unwrap();
 

@@ -36,10 +36,9 @@ pub struct KernelArgs {
 
 #[entry]
 fn ignite() -> Status {
-    println!("Research UNIX Version 11 by H4n_uL");
+    println!("Igniting Research UNIX Version 11");
     ram::init_ram();
     let ptr = storage::load_kernel_image();
-    println!("Jumping to kernel at {:x}", ptr);
     let efi_ram_layout = unsafe { exit_boot_services(MemoryType::LOADER_DATA) };
     let arg = KernelArgs {
         layout_ptr: efi_ram_layout.buffer().as_ptr() as *const MemoryDescriptor,
