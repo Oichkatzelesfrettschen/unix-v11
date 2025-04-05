@@ -1,6 +1,6 @@
-//!                 Research UNIX Version 11 EFI Application                 !//
+//!                              EFI Bootloader                              !//
 //!
-//! Made by HaמuL in 2025
+//! Crafted by HaמuL in 2025
 //! Description: EFI Bootloader of Research UNIX Version 11
 //! Licence: Public Domain
 

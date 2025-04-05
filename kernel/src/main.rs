@@ -1,7 +1,7 @@
-//!                         Research UNIX Version 11                         !//
+//!          Uniplexed Information and Computing Service Version 11          !//
 //!
-//! Made by HaמuL in 2025
-//! Description: Entry point of Research UNIX Version 11
+//! Crafted by HaמuL in 2025
+//! Description: Kernel of Research UNIX Version 11
 //! Licence: Public Domain
 
 #![no_std]
