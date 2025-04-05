@@ -38,8 +38,11 @@ pub struct KernelArgs {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ignite(args: KernelArgs) -> ! {
+    arch::init_serial();
+    arch::serial_print("Research UNIX Version 11\n");
     let efi_ram_layout = unsafe { core::slice::from_raw_parts(args.layout_ptr, args.layout_len) };
     init_metal(efi_ram_layout);
+    arch::serial_print("EFI RAM Init success\n");
     exec_aleph();
     schedule();
 }

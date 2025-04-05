@@ -6,9 +6,8 @@
 
 #![no_std]
 #![no_main]
-extern crate alloc;
 
-mod ram; mod storage;
+mod storage;
 
 use core::panic::PanicInfo;
 use uefi::{
@@ -26,8 +25,6 @@ macro_rules! arch {
 arch!("aarch64", aarch64);
 arch!("x86_64", amd64);
 
-fn schedule() -> ! { loop { arch::halt(); } }
-
 #[repr(C)]
 pub struct KernelArgs {
     pub layout_ptr: *const MemoryDescriptor,
@@ -36,8 +33,6 @@ pub struct KernelArgs {
 
 #[entry]
 fn ignite() -> Status {
-    println!("Igniting Research UNIX Version 11");
-    ram::init_ram();
     let ptr = storage::load_kernel_image();
     let efi_ram_layout = unsafe { exit_boot_services(MemoryType::LOADER_DATA) };
     let arg = KernelArgs {
