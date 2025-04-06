@@ -11,7 +11,7 @@ mod storage;
 
 use core::panic::PanicInfo;
 use uefi::{
-    boot::{exit_boot_services, MemoryDescriptor, MemoryType},
+    boot::{exit_boot_services, MemoryType},
     entry, mem::memory_map::MemoryMap, println, Status
 };
 
@@ -26,21 +26,23 @@ arch!("aarch64", aarch64);
 arch!("x86_64", amd64);
 
 #[repr(C)]
-pub struct KernelArgs {
-    pub layout_ptr: *const MemoryDescriptor,
-    pub layout_len: usize,
+#[derive(Clone, Copy, Debug)]
+pub struct RAMDescriptor {
+    pub ty: u32,
+    pub reserved: u32,
+    pub phys_start: u64,
+    pub virt_start: u64,
+    pub page_count: u64,
+    pub attr: u64,
+    pub padding: u64
 }
 
 #[entry]
 fn ignite() -> Status {
     let ptr = storage::load_kernel_image();
     let efi_ram_layout = unsafe { exit_boot_services(MemoryType::LOADER_DATA) };
-    let arg = KernelArgs {
-        layout_ptr: efi_ram_layout.buffer().as_ptr() as *const MemoryDescriptor,
-        layout_len: efi_ram_layout.len(),
-    };
-    let jump: extern "C" fn(arg: KernelArgs) -> ! = unsafe { core::mem::transmute(ptr) };
-    jump(arg);
+    let jump: extern "C" fn(*const RAMDescriptor, usize) -> ! = unsafe { core::mem::transmute(ptr) };
+    jump(efi_ram_layout.buffer().as_ptr() as *const RAMDescriptor, efi_ram_layout.len());
 }
 
 #[panic_handler]
