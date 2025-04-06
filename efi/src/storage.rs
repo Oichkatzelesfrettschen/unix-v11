@@ -5,7 +5,7 @@ use uefi::{
 };
 use xmas_elf::{program::Type, ElfFile};
 
-const PAGE_SIZE: usize = 0x1000;
+const PAGE_4KIB: usize = 0x1000;
 
 pub fn load_kernel_image() -> usize {
     let mut filesys_protocol = get_image_file_system(image_handle()).unwrap();
@@ -21,7 +21,7 @@ pub fn load_kernel_image() -> usize {
     let info = file.get_info::<FileInfo>(&mut info_buf).unwrap();
     let size = info.file_size() as usize;
 
-    let pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+    let pages = (size + PAGE_4KIB - 1) / PAGE_4KIB;
     let ptr = allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_DATA, pages).unwrap();
     let kernel = unsafe { from_raw_parts_mut(ptr.as_ptr(), size) };
     file.read(kernel).unwrap();
