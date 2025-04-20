@@ -5,7 +5,7 @@ use x86_64::{
     PhysAddr
 };
 
-use crate::ram::{PAGE_2MIB, PAGE_4KIB};
+use crate::ram::PAGE_4KIB;
 
 pub fn halt() {
     interrupts::disable();
@@ -62,49 +62,91 @@ pub fn print_hex64(num: u64) {
 }
 
 const PAGE_TABLE_ADDR: u64 = 0x200000;
-const ENTRIES_PER_TABLE: u64 = 512;
+const ENTRIES_PER_TABLE: usize = 0x200;
 
 pub unsafe fn map_identity(ram_size: u64) {
     let pml4_addr = PAGE_TABLE_ADDR;
-    let pdpt_addr = pml4_addr + PAGE_4KIB as u64;
-    let pd_addr = pdpt_addr + PAGE_4KIB as u64;
 
-    for i in 0..3 {
-        let table_addr = PAGE_TABLE_ADDR + (i * PAGE_4KIB as u64);
-        for j in 0..ENTRIES_PER_TABLE {
-            let entry_addr = table_addr + (j * 8);
-            *(entry_addr as *mut u64) = 0;
+    // Calculate counts
+    let num_4kib_pages = (ram_size as usize + PAGE_4KIB - 1) / PAGE_4KIB;
+    let num_pt = (num_4kib_pages + ENTRIES_PER_TABLE - 1) / ENTRIES_PER_TABLE;
+    let num_pd = (num_pt + ENTRIES_PER_TABLE - 1) / ENTRIES_PER_TABLE;
+    let num_pdpt = (num_pd + ENTRIES_PER_TABLE - 1) / ENTRIES_PER_TABLE;
+
+    let table_size = (1 + num_pdpt + num_pd + num_pt) * PAGE_4KIB;
+
+    let pdpt_base = pml4_addr + PAGE_4KIB as u64;
+    let pd_base = pdpt_base + (num_pdpt as u64 * PAGE_4KIB as u64);
+    let pt_base = pd_base + (num_pd as u64 * PAGE_4KIB as u64);
+
+    for i in 0..ENTRIES_PER_TABLE { // Zero out PML4
+        let entry = (pml4_addr + (i as u64 * 8)) as *mut u64;
+        *entry = 0;
+    }
+
+    for t in 0..num_pdpt { // Zero out PDPTs
+        let table_addr = pdpt_base + (t as u64 * PAGE_4KIB as u64);
+        for i in 0..ENTRIES_PER_TABLE {
+            let entry = (table_addr + (i as u64 * 8)) as *mut u64;
+            *entry = 0;
         }
     }
-    serial_print("Page tables initialized to zero\n");
 
-    *(pml4_addr as *mut u64) = pdpt_addr | 0x3; // PRESENT | WRITABLE
-    *(pdpt_addr as *mut u64) = pd_addr | 0x3;   // PRESENT | WRITABLE
-    serial_print("Basic page structure set up\n");
-
-    for i in 0..ram_size / PAGE_2MIB as u64 {
-        let pd_entry_addr = pd_addr + (i * 8);
-        let phys_addr = i * PAGE_2MIB as u64;
-        *(pd_entry_addr as *mut u64) = phys_addr | 0x83; // PRESENT | WRITABLE | PAGE_2MIB
+    for t in 0..num_pd { // Zero out PDs
+        let table_addr = pd_base + (t as u64 * PAGE_4KIB as u64);
+        for i in 0..ENTRIES_PER_TABLE {
+            let entry = (table_addr + (i as u64 * 8)) as *mut u64;
+            *entry = 0;
+        }
     }
 
-    serial_print("2MB pages mapped for first 1GB\n");
+    for i in 0..num_pdpt { // Link PML4 -> PDPTs
+        let pml4_entry = (pml4_addr + (i as u64 * 8)) as *mut u64;
+        *pml4_entry = (pdpt_base + (i as u64 * PAGE_4KIB as u64)) | 0x3;
+    }
+
+    for i in 0..num_pdpt { // Link PDPTs -> PDs
+        let pdpt_entry_addr = pdpt_base + (i as u64 * PAGE_4KIB as u64);
+        for j in 0..ENTRIES_PER_TABLE {
+            let pdpt_entry = (pdpt_entry_addr + (j as u64 * 8)) as *mut u64;
+            let pd_index = i * ENTRIES_PER_TABLE + j;
+            if pd_index >= num_pd { break; }
+            *pdpt_entry = (pd_base + (pd_index as u64 * PAGE_4KIB as u64)) | 0x3;
+        }
+    }
+
+    for i in 0..num_pd { // Link PDs -> PTs
+        let pd_entry_addr = pd_base + (i as u64 * PAGE_4KIB as u64);
+        for j in 0..ENTRIES_PER_TABLE {
+            let pd_entry = (pd_entry_addr + (j as u64 * 8)) as *mut u64;
+            let pt_index = i * ENTRIES_PER_TABLE + j;
+            if pt_index >= num_pt { break; }
+            *pd_entry = (pt_base + (pt_index as u64 * PAGE_4KIB as u64)) | 0x3;
+        }
+    }
+
+    let mut phys = 0u64;
+    for pt_idx in 0..num_pt { // Allocate Pages
+        let pt_table_addr = pt_base + (pt_idx as u64 * PAGE_4KIB as u64);
+        for j in 0..ENTRIES_PER_TABLE {
+            if phys >= ram_size { break; }
+            let entry = (pt_table_addr + (j as u64 * 8)) as *mut u64;
+            *entry = phys | 0x03; // PRESENT | WRITABLE
+            phys += PAGE_4KIB as u64;
+        }
+    }
 
     let mut cr4 = Cr4::read();
-    cr4 |= Cr4Flags::PHYSICAL_ADDRESS_EXTENSION;
-    cr4 |= Cr4Flags::PAGE_SIZE_EXTENSION;
+    cr4 |= Cr4Flags::PHYSICAL_ADDRESS_EXTENSION | Cr4Flags::PAGE_SIZE_EXTENSION;
     Cr4::write(cr4);
 
     let mut efer = Efer::read();
-    efer |= EferFlags::LONG_MODE_ENABLE;
-    efer |= EferFlags::NO_EXECUTE_ENABLE;
+    efer |= EferFlags::LONG_MODE_ENABLE | EferFlags::NO_EXECUTE_ENABLE;
     Efer::write(efer);
 
-    serial_print("CR4 and EFER set\n");
-
-    serial_print("Setting CR3 to ");
-    print_hex64(pml4_addr);
-    serial_print("\n");
+    serial_print("Table size = 0x");
+    print_hex64(table_size as u64);
+    serial_print(" bytes\n");
 
     Cr3::write(
         PhysFrame::containing_address(PhysAddr::new(pml4_addr)),
@@ -118,7 +160,7 @@ pub unsafe fn map_identity(ram_size: u64) {
 
 unsafe fn test_memory_areas() {
     let test_addresses = [
-        0x180000,   // 1 MB
+        0x300000,   // 3 MB
         0x500000,   // 5 MB
         0xa00000,   // 10 MB
         0x1000000,  // 16 MB
@@ -138,8 +180,7 @@ unsafe fn test_memory_areas() {
 
         if read_value == test_value {
             serial_print("SUCCESS\n");
-        }
-        else {
+        } else {
             serial_print("FAILED (read 0x");
             print_hex64(read_value as u64);
             serial_print(")\n");

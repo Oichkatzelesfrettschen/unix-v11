@@ -3,7 +3,7 @@ use linked_list_allocator::LockedHeap;
 // pub const HEAP_SIZE: usize = 0x10_0000;
 
 pub const PAGE_4KIB: usize = 0x1000;
-pub const PAGE_2MIB: usize = 0x200000;
+// pub const PAGE_2MIB: usize = 0x200000;
 // pub const PAGE_1GIB: usize = 0x40000000;
 
 #[global_allocator]
