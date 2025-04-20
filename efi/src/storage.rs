@@ -12,7 +12,7 @@ pub fn load_kernel_image() -> usize {
     let mut root = filesys_protocol.open_volume().unwrap();
 
     let mut file = root.open(
-        cstr16!("bin\\unix-v11"),
+        cstr16!("\\bin\\unix-v11"),
         FileMode::Read,
         FileAttribute::empty()
     ).unwrap().into_regular_file().unwrap();
