@@ -87,7 +87,7 @@ fn ignite() -> Status {
         .max().unwrap() as usize;
 
     let kernel_pages = align_up(kernel_size, PAGE_4KIB) / PAGE_4KIB;
-    let kernel_base = allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_DATA, kernel_pages).unwrap().as_ptr() as usize;
+    let kernel_base = allocate_pages(AllocateType::AnyPages, MemoryType::LOADER_CODE, kernel_pages).unwrap().as_ptr() as usize;
 
     for ph in elf.program_iter() {
         if let Ok(Type::Load) = ph.get_type() {
@@ -95,7 +95,7 @@ fn ignite() -> Status {
             let file_size = ph.file_size() as usize;
             let mem_size = ph.mem_size() as usize;
             let phys_addr = (kernel_base + ph.virtual_addr() as usize) as *mut u8;
-    
+
             unsafe {
                 core::ptr::copy(file_binary[offset..offset + file_size].as_ptr(), phys_addr, file_size);
                 core::ptr::write_bytes(phys_addr.add(file_size), 0, mem_size - file_size);
@@ -119,12 +119,12 @@ fn ignite() -> Status {
     let entrypoint = elf.header.pt2.entry_point() as usize + kernel_base as usize;
     let spark: extern "efiapi" fn(Ember) -> ! = unsafe { core::mem::transmute(entrypoint) };
     let efi_ram_layout = unsafe { exit_boot_services(MemoryType::LOADER_DATA) };
+    let stack_base = arch::stack_ptr() as usize;
     let ember = Ember {
         layout_ptr: efi_ram_layout.buffer().as_ptr() as *const RAMDescriptor,
         layout_len: efi_ram_layout.len(),
-        acpi_rsdp_ptr, stack_base: arch::stack_ptr(), kernel_base, kernel_size
+        acpi_rsdp_ptr, stack_base, kernel_base, kernel_size
     };
-    // unsafe { arch::identity_map(&ember); }
     spark(ember);
 }
 
