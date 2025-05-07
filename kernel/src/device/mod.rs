@@ -135,7 +135,7 @@ pub fn init_acpi(rsdp_addr: usize) -> Result<AcpiTables<KernelAcpiHandler>, &'st
     let handler = KernelAcpiHandler;
     let tables = unsafe { AcpiTables::from_rsdp(handler, rsdp_addr) }
         .map_err(|_| "Failed to initialize ACPI tables")?;
-    
+
     return Ok(tables);
 }
 
